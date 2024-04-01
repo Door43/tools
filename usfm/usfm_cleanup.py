@@ -24,7 +24,9 @@ from datetime import date
 
 gui = None
 config = None
-enable = [True]*8
+enable = [True]*9
+schapter = ""
+std_titles = ""
 nChanged = 0
 aligned_usfm = False
 needcaps = True
@@ -337,10 +339,32 @@ def capitalizeAsNeeded(str):
     needcaps = (sentences.endsSentence(str) and not sentences.endsQuotedSentence(str))
     return str
 
+cl_pattern = re.compile(r'(.*)([\d]+)(.*)')
+
+def fix_chapter_label(label):
+    global schapter
+    global std_titles
+    lab = cl_pattern.match(label.strip())
+    if lab:
+        part1 = std_titles + " " if len(lab.group(1)) > 0 else ""
+        part2 = schapter if lab.group(2).isascii() else lab.group(2)
+        part3 = " " + std_titles if len(lab.group(3)) > 0 else ""
+        label = f"{part1}{part2}{part3}"
+    return label
+
+# May change the label.
+# Writes the tag and label to the usfm file.
+def takeCL(label, usfm):
+    origlabel = label
+    if enable[8]:
+        label = fix_chapter_label(label)
+    usfm.writeUsfm("cl", label)
+    return (label != origlabel)
+
 def takeText(str, usfm):
     origstr = str
     global in_footnote
-    if not in_footnote:
+    if enable[5] and not in_footnote:
         str = capitalizeAsNeeded(str)
     usfm.writeStr(str)
     return (str != origstr)
@@ -349,13 +373,21 @@ def take(token, usfm):
     changed = False
     if token.isTEXT():
         changed = takeText(token.value, usfm)
+    elif token.isC():
+        global schapter
+        schapter = token.value
+        usfm.writeUsfm(token.type, token.value)
+    elif token.isCL():
+        if takeCL(token.value, usfm):
+            changed = True
     elif isFootnote(token):
         takeFootnote(token.type, token.value, usfm)
     else:
         usfm.writeUsfm(token.type, token.value)
     return 1 if changed else 0
 
-# Parses and rewrites the usfm file with corrections to capitalization.
+# Parses and rewrites the usfm file with corrections to capitalization
+# and/or chapter titles.
 # Returns True if any changes are made.
 def convert_by_token(path):
     changes = 0
@@ -390,7 +422,7 @@ def convertFile(path):
         nChanged += 1
     if convert_by_line(path):
         nChanged += 1
-    if enable[5]:   # capitalization
+    if enable[5] or enable[8]:   # capitalization or chapter titles
         if convert_by_token(path):
             nChanged += 1
 
@@ -422,14 +454,16 @@ def convertFolder(folder):
 def main(app = None):
     global gui
     global config
+    global std_titles
 
     gui = app
-    config = configmanager.ToolsConfigManager().get_section('UsfmCleanup')   # configmanager version
+    config = configmanager.ToolsConfigManager().get_section('UsfmCleanup')
     if config:
+        std_titles = config['standard_chapter_title']
         source_dir = config['source_dir']
         for i in range(1, len(enable)):
             enable[i] = config.getboolean('enable'+str(i), fallback = True)
-        file = config['filename']  # configmanager version
+        file = config['filename']
         if file:
             path = os.path.join(source_dir, file)
             if os.path.isfile(path):
