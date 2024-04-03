@@ -16,37 +16,39 @@ class SelectProcess(g_step.Step):
         self.frame = Select_Frame(mainframe, self)
         self.frame.grid(row=1, column=0, sticky="nsew")
 
+    def name(self):
+        return stepname
+
     def onNext(self):
         self.mainapp.set_process(self.values['selection'])
         self.mainapp.step_next()
 
-class Select_Frame(ttk.Frame):
+class Select_Frame(g_step.Step_Frame):
     def __init__(self, parent, controller):
-        super().__init__(parent)
-        self.controller = controller
+        super().__init__(parent, controller)
 
         self.process = StringVar()        
         subheadingFont = font.Font(size=10, slant='italic')     # normal size is 9
         suppressions_label = ttk.Label(self, text="What do you want to do today?", font=subheadingFont)
         suppressions_label.grid(row=3, column=1, columnspan=2, sticky=W, pady=(4,2))
 
-        process1_rb = ttk.Radiobutton(self, text='Convert text to USFM', variable=self.process,
+        process1_rb = ttk.Radiobutton(self, text='Convert BTT-Writer text to USFM', variable=self.process,
                                       command=self._onRbChange, value='Txt2USFM')
         process1_rb.grid(row=4, column=1, sticky=W)
         process1_Tip = Hovertip(process1_rb, hover_delay=500,
              text="Convert a set of text files from BTT-Writer repos to USFM.")
 
-        process2_rb = ttk.Radiobutton(self, text='Verify and clean USFM', variable=self.process,
-                                      command=self._onRbChange, value='VerifyUSFM')
+        process2_rb = ttk.Radiobutton(self, text='Convert plain text to USFM', variable=self.process,
+                                      command=self._onRbChange, value='Plaintext2Usfm')
         process2_rb.grid(row=5, column=1, sticky=W)
         process2_Tip = Hovertip(process2_rb, hover_delay=500,
-             text="Verify and/or clean up existing USFM file.")
+             text="Convert plain text filed containing books of the Bible to usfm files.")
 
-        process3_rb = ttk.Radiobutton(self, text='Convert plain text to USFM', variable=self.process,
-                                      command=self._onRbChange, value='Plaintext2Usfm')
+        process3_rb = ttk.Radiobutton(self, text='Verify and clean USFM', variable=self.process,
+                                      command=self._onRbChange, value='VerifyUSFM')
         process3_rb.grid(row=6, column=1, sticky=W)
         process3_Tip = Hovertip(process3_rb, hover_delay=500,
-             text="Convert plain text filed containing books of the Bible to usfm files.")
+             text="Verify and/or clean up existing USFM files.")
 
         process4_rb = ttk.Radiobutton(self, text='Convert USFM to USX', variable=self.process,
                                       command=self._onRbChange, value='Usfm2Usx')
@@ -55,17 +57,6 @@ class Select_Frame(ttk.Frame):
              text="Produce a BTTW-compatible resource container from USFM.")
 
         self.columnconfigure(1, minsize=505)
-        self.rowconfigure(88, minsize=150, weight=1)  # let the message expand vertically
-
-        self.message_area = Text(self, height=10, width=60, wrap="word")
-        self.message_area['borderwidth'] = 2
-        self.message_area['relief'] = 'sunken'
-        self.message_area['background'] = 'grey97'
-        self.message_area.grid(row=88, column=1, sticky='nsew', pady=6)
-
-        ys = ttk.Scrollbar(self, orient = 'vertical', command = self.message_area.yview)
-        ys.grid(column = 5, row = 88, sticky = 'ns')
-        self.message_area['yscrollcommand'] = ys.set
 
     # Called when the frame is first activated. Populate the initial values.
     def show_values(self, values):
@@ -84,12 +75,9 @@ class Select_Frame(ttk.Frame):
 
     # Handles the radio button click event.
     def _onRbChange(self, *args):
+        self.values['selection'] = self.process.get()
         self._explain()
         self._set_button_status()
-
-    def _onNext(self, *args):
-        self._save_values()
-        self.controller.onNext()
 
     # Presents a detailed message about the selected process.
     def _explain(self, *args):
@@ -108,8 +96,8 @@ The resulting USFM file(s) need to be verified and probably cleaned up a bit.")
                 self.message_area.insert('end', "Find and address issues in USFM files.")
             case 'Plaintext2Usfm':
                 self.message_area.insert('end',
-"This process converts text files containing books of the Bible to usfm.\n\
-The text files must meet these rigid conditions:\n\
+"This process converts SCripture text files, *not* of BTT-Writer origin, to USFM. \
+To be converted, the text files must meet these conditions:\n\
   * Each file contains a single book of the Bible.\n\
   * No extraneous text in file.\n\
   * File names must be like XXX.txt (where XXX = book id).\n\
@@ -130,6 +118,15 @@ The input file(s) should be verified, correct USFM. Therefore, the first step of
                 self.message_area.insert(f"Internal error: process {self.process.get()} is not handled.")
         self.message_area.see('1.0')
         self.message_area['state'] = DISABLED   # prevents editing of message area
+
+
+    # Required ABC methods
+    def _save_values(self):
+        pass
+    def _onExecute(self, *args):
+        pass
+    def onScriptEnd(self, nIssues):
+        pass
 
     def _set_button_status(self):
         # okay = self.process.get() in {'Txt2USFM', 'VerifyUSFM', 'Plaintext2Usfm', 'Usfm2Usx'}

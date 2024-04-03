@@ -20,32 +20,34 @@ class VerifyManifest(g_step.Step):
         self.frame = VerifyManifest_Frame(mainframe, self)
         self.frame.grid(row=1, column=0, sticky="nsew")
 
+    def name(self):
+        return stepname
+
     def onExecute(self, values):
-        self.values = values
+        self.enablebutton(2, False)
+        # self.values = values
         self.mainapp.execute_script("verifyManifest", 1)
         self.frame.clear_status()
 
-class VerifyManifest_Frame(ttk.Frame):
+class VerifyManifest_Frame(g_step.Step_Frame):
     def __init__(self, parent, controller):
-        super().__init__(parent)
-        self.controller = controller
+        super().__init__(parent,controller)
+        # self.controller = controller
 
         self.source_dir = StringVar()
         self.source_dir.trace_add("write", self._onChangeEntry)
         self.expectAscii = BooleanVar(value = False)
-        for col in (2,3):
-            self.columnconfigure(col, weight=1)   # keep column 1 from expanding
-        self.columnconfigure(4, minsize=82)
-        self.rowconfigure(88, minsize=170, weight=1)  # let the message expand vertically
+        for col in (3,5):
+            self.columnconfigure(col, weight=1)   # keep columns 1,4 from expanding
 
         source_dir_label = ttk.Label(self, text="Location of resource: ")
         source_dir_label.grid(row=4, column=1, sticky=W, pady=2)
-        self.source_dir_entry = ttk.Entry(self, width=49, textvariable=self.source_dir)
-        self.source_dir_entry.grid(row=4, column=2, columnspan=3, sticky=W)
+        self.source_dir_entry = ttk.Entry(self, width=45, textvariable=self.source_dir)
+        self.source_dir_entry.grid(row=4, column=2, sticky=W)
         file_Tip = Hovertip(self.source_dir_entry, hover_delay=500,
              text="Folder where manifest.yaml and other files to be submitted reside")
         src_dir_find = ttk.Button(self, text="...", width=2, command=self._onFindSrcDir)
-        src_dir_find.grid(row=4, column=4, sticky=W)
+        src_dir_find.grid(row=4, column=3, sticky=W, padx=5)
 
         expectAscii_checkbox = ttk.Checkbutton(self, text=r'Expect ASCII', variable=self.expectAscii,
                                              onvalue=True, offvalue=False)
@@ -53,14 +55,7 @@ class VerifyManifest_Frame(ttk.Frame):
         expectAscii_Tip = Hovertip(expectAscii_checkbox, hover_delay=500,
              text=r"Suppress warnings about ASCII book titles, etc")
 
-        self.message_area = Text(self, height=10, width=30, wrap="none")
-        self.message_area['borderwidth'] = 2
-        self.message_area['relief'] = 'sunken'
-        self.message_area['background'] = 'grey97'
-        self.message_area.grid(row=88, column=1, columnspan=4, sticky='nsew', pady=6)
-        ys = ttk.Scrollbar(self, orient = 'vertical', command = self.message_area.yview)
-        ys.grid(row = 88, column = 5, sticky = 'ns')
-        self.message_area['yscrollcommand'] = ys.set
+        self.message_area['wrap'] = "none"
         xs = ttk.Scrollbar(self, orient = 'horizontal', command = self.message_area.xview)
         xs.grid(row=89, column = 1, columnspan=4, sticky = 'ew')
         self.message_area['xscrollcommand'] = xs.set
@@ -81,12 +76,6 @@ class VerifyManifest_Frame(ttk.Frame):
         self.controller.enablebutton(5, False)
         self._set_button_status()
 
-    # Displays status messages from the running script.
-    def show_progress(self, status):
-        self.message_area.insert('end', status + '\n')
-        self.message_area.see('end')
-        self.controller.enablebutton(2, False)
-
     def onScriptEnd(self):
         self.message_area['state'] = DISABLED   # prevents insertions to message area
         self.controller.enablebutton(2, True)
@@ -102,10 +91,6 @@ class VerifyManifest_Frame(ttk.Frame):
         self.controller.mainapp.save_values(stepname, self.values)
         self._set_button_status()
 
-    def _onExecute(self, *args):
-        self._save_values()
-        self.controller.onExecute(self.values)
-
     def _onFindSrcDir(self, *args):
         self.controller.askdir(self.source_dir)
     def _onChangeEntry(self, *args):
@@ -118,10 +103,6 @@ class VerifyManifest_Frame(ttk.Frame):
     def _onOpenSourceDir(self, *args):
         self._save_values()
         os.startfile(self.values['source_dir'])
-
-    def _onBack(self, *args):
-        self._save_values()
-        self.controller.onBack()
 
     def _set_button_status(self):
         self.controller.enablebutton(2, os.path.isdir(self.source_dir.get()))

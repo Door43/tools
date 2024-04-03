@@ -21,13 +21,18 @@ class MarkParagraphs(g_step.Step):
         self.frame = MarkParagraphs_Frame(mainframe, self)
         self.frame.grid(row=1, column=0, sticky="nsew")
 
+    def name(self):
+        return stepname
+
     def onExecute(self, values):
+        self.enablebutton(2, False)
+        self.enablebutton(3, False)
         self.values = values
-        count = 2
+        count = 1
         if not values['filename']:
-            count = g_util.count_files(values['source_dir'], ".*sfm$") * 2
+            count = g_util.count_files(values['source_dir'], ".*sfm$")
         self.script = "mark_paragraphs"
-        self.mainapp.execute_script(self.script, count)
+        self.mainapp.execute_script(self.script, count*2)
         self.frame.clear_status()
 
     # Runs the revertChanges script to revert mark_paragraphs changes.
@@ -52,12 +57,14 @@ class MarkParagraphs(g_step.Step):
             else:
                 msg = "No issues reported. This is a good time to reverify the USFM files."
                 self.frame.show_progress(msg)
+        self.enablebutton(2, True)
+        self.enablebutton(3, True)
+        self.enablebutton(4, True)
         self.frame.onScriptEnd(nIssues)
 
-class MarkParagraphs_Frame(ttk.Frame):
+class MarkParagraphs_Frame(g_step.Step_Frame):
     def __init__(self, parent, controller):
-        super().__init__(parent)
-        self.controller = controller
+        super().__init__(parent, controller)
 
         self.source_dir = StringVar()
         self.model_dir = StringVar()
@@ -69,7 +76,6 @@ class MarkParagraphs_Frame(ttk.Frame):
             var.trace_add("write", self._onChangeEntry)
         self.columnconfigure(3, weight=1)   # keep column 1 from expanding
         self.columnconfigure(4, minsize=115)
-        self.rowconfigure(88, minsize=170, weight=1)  # let the message expand vertically
 
         model_dir_label = ttk.Label(self, text="Location of model files:", width=21)
         model_dir_label.grid(row=3, column=1, sticky=(W,E), pady=2)
@@ -78,14 +84,14 @@ class MarkParagraphs_Frame(ttk.Frame):
         model_dir__Tip = Hovertip(self.model_dir_entry, hover_delay=500,
              text="Folder containing USFM files with well marked paragraphs, e.g. English UDB folder")
         model_dir_find = ttk.Button(self, text="...", width=2, command=self._onFindModelDir)
-        model_dir_find.grid(row=3, column=4, sticky=W, padx=8)
+        model_dir_find.grid(row=3, column=4, sticky=W)
 
         source_dir_label = ttk.Label(self, text="Location of files\n to be marked:", width=15)
         source_dir_label.grid(row=4, column=1, sticky=W, pady=2)
         self.source_dir_entry = ttk.Entry(self, width=43, textvariable=self.source_dir)
         self.source_dir_entry.grid(row=4, column=2, columnspan=3, sticky=W)
         src_dir_find = ttk.Button(self, text="...", width=2, command=self._onFindSrcDir)
-        src_dir_find.grid(row=4, column=4, sticky=W, padx=8)
+        src_dir_find.grid(row=4, column=4, sticky=W)
 
         file_label = ttk.Label(self, text="File name:", width=20)
         file_label.grid(row=5, column=1, sticky=W, pady=2)
@@ -117,15 +123,6 @@ class MarkParagraphs_Frame(ttk.Frame):
         sentence_sensitive_Tip = Hovertip(sentence_sensitive_checkbox, hover_delay=500,
              text="Only insert \p marks *between punctuated sentences. (Recommended)")
 
-        self.message_area = Text(self, height=10, width=30, wrap="word")
-        self.message_area['borderwidth'] = 2
-        self.message_area['relief'] = 'sunken'
-        self.message_area['background'] = 'grey97'
-        self.message_area.grid(row=88, column=1, columnspan=5, sticky='nsew', pady=6)
-        ys = ttk.Scrollbar(self, orient = 'vertical', command = self.message_area.yview)
-        ys.grid(column = 6, row = 88, sticky = 'ns')
-        self.message_area['yscrollcommand'] = ys.set
-
         self.model_dir_entry.focus()
 
     def show_values(self, values):
@@ -148,13 +145,6 @@ class MarkParagraphs_Frame(ttk.Frame):
         self.controller.showbutton(5, ">>>", tip="Verify manifest", cmd=self._onNext)
         self._set_button_status()
 
-    # Displays status messages from the running script.
-    def show_progress(self, status):
-        self.message_area.insert('end', status + '\n')
-        self.message_area.see('end')
-        self.controller.enablebutton(2, False)
-        self.controller.enablebutton(3, False)
-
     def onScriptEnd(self, nIssues):
         issuespath = os.path.join(self.values['source_dir'], "issues.txt")
         if nIssues > 0:
@@ -162,9 +152,6 @@ class MarkParagraphs_Frame(ttk.Frame):
             self.message_area.insert('end', "Resolve as appropriate.\n")
             self.message_area.see('end')
         self.message_area['state'] = DISABLED   # prevents insertions to message area
-        self.controller.enablebutton(2, True)
-        self.controller.enablebutton(3, True)
-        self.controller.enablebutton(4, True)
 
     # Called by the controller when script execution begins.
     def clear_status(self):
@@ -181,10 +168,6 @@ class MarkParagraphs_Frame(ttk.Frame):
         self.controller.mainapp.save_values(stepname, self.values)
         self._set_button_status()
 
-    def _onExecute(self, *args):
-        self._save_values()
-        self.controller.onExecute(self.values)
-
     def _onFindModelDir(self, *args):
         self.controller.askdir(self.model_dir)
     def _onFindSrcDir(self, *args):
@@ -199,14 +182,6 @@ class MarkParagraphs_Frame(ttk.Frame):
         path = os.path.join(self.values['source_dir'], "issues.txt")
         os.startfile(path)
 
-    def _onBack(self, *args):
-        self.controller.enablebutton(4, False)
-        self._save_values()
-        self.controller.onBack()
-    def _onNext(self, *args):
-        self.controller.enablebutton(4, False)
-        self._save_values()
-        self.controller.onNext()
     def _onUndo(self, *args):
         self._save_values()
         self.controller.revertChanges()

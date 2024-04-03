@@ -20,7 +20,11 @@ class Usfm2Usx(g_step.Step):
         self.frame = Usfm2Usx_Frame(mainframe, self)
         self.frame.grid(row=1, column=0, sticky="nsew")
 
+    def name(self):
+        return stepname
+
     def onExecute(self, values):
+        self.enablebutton(2, False)
         # self.values = values    # redundant, they were the same dict to begin with
         count = 1
         if not values['filename']:
@@ -36,11 +40,11 @@ class Usfm2Usx(g_step.Step):
             "Test one or more of the generated “resource containers” by using it as a source text in BTT-Writer."
         self.frame.show_progress(msg)
         self.frame.onScriptEnd()
+        self.enablebutton(2, True)
 
-class Usfm2Usx_Frame(ttk.Frame):
+class Usfm2Usx_Frame(g_step.Step_Frame):
     def __init__(self, parent, controller):
-        super().__init__(parent)
-        self.controller = controller
+        super().__init__(parent, controller)
 
         self.language_code = StringVar()
         self.language_name = StringVar()
@@ -126,15 +130,6 @@ class Usfm2Usx_Frame(ttk.Frame):
         rc_dir_find = ttk.Button(self, text="...", width=2, command=self._onFindRcDir)
         rc_dir_find.grid(row=10, column=5, sticky=W)
         
-        self.message_area = Text(self, height=10, width=30, wrap="word")
-        self.message_area['borderwidth'] = 2
-        self.message_area['relief'] = 'sunken'
-        self.message_area['background'] = 'grey97'
-        self.message_area.grid(row=88, column=1, columnspan=4, sticky='nsew', pady=6)
-        ys = ttk.Scrollbar(self, orient = 'vertical', command = self.message_area.yview)
-        ys.grid(column = 5, row = 88, sticky = 'ns')
-        self.message_area['yscrollcommand'] = ys.set
-
     def show_values(self, values):
         self.values = values
         self.language_code.set(values.get('language_code', fallback=""))
@@ -156,15 +151,8 @@ class Usfm2Usx_Frame(ttk.Frame):
         self.controller.hidebutton(3,4,5)
         self._set_button_status()
 
-    # Displays status messages from the running script.
-    def show_progress(self, status):
-        self.message_area.insert('end', status + '\n')
-        self.message_area.see('end')
-        self.controller.enablebutton(2, False)
-
     def onScriptEnd(self):
         self.message_area['state'] = DISABLED   # prevents insertions to message area
-        self.controller.enablebutton(2, True)
 
     # Called by the controller when script execution begins.
     def clear_status(self):
@@ -208,14 +196,6 @@ class Usfm2Usx_Frame(ttk.Frame):
         if len(self.bible_name.get()) > 3 and not self.bible_id:
             self.bible_id.set( self.bible_name.get().lower()[0:3] )
         self._set_button_status()
-
-    def _onBack(self, *args):
-        self._save_values()
-        self.controller.onBack()
-    def _onExecute(self, *args):
-        self._save_values()
-        self.controller.enablebutton(2, False)
-        self.controller.onExecute(self.values)
 
     def _set_button_status(self):
         dirs_ok = os.path.isdir(self.source_dir.get()) and os.path.isdir(self.rc_dir.get())
