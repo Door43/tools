@@ -24,6 +24,7 @@ import g_verifyManifest
 import g_usfm2usx
 from txt2USFM import main
 from verifyUSFM import main
+from inventory_chapter_labels import main
 from usfm_cleanup import main
 from mark_paragraphs import main
 from plaintext2usfm import main
@@ -49,7 +50,7 @@ class UsfmWizard(tkinter.Tk):
         self._build_steps(mainframe)
 
         self.process = 'SelectProcess'
-        self.activate_step('SelectProcess')
+        self.activate_step_byname('SelectProcess')
         self.bind('<<ScriptMessage>>', self.onScriptMessage)
         self.bind('<<ScriptProgress>>', self.onScriptProgress)
         self.bind('<<ScriptEnd>>', self.onScriptEnd)
@@ -63,7 +64,7 @@ class UsfmWizard(tkinter.Tk):
                   g_verifyManifest, g_plaintext2usfm, g_usfm2usx):
             stepclass = getattr(sys.modules[S.__name__], S.stepname)
             step = stepclass(mainframe, mainapp=self)   # create an instance of the class
-            self.steps[S.stepname] = step
+            self.steps[step.name()] = step
         for child in self.winfo_children():
             child.grid_configure(padx=(25,15), pady=5)
 
@@ -73,7 +74,8 @@ class UsfmWizard(tkinter.Tk):
         self.unbind("<Enter>")
 
     def execute_script(self, module, count):
-        self.titleframe.start_progress(count)
+        if count > 0:
+            self.titleframe.start_progress(count)
         self.titleframe.tkraise()
         self.progress = ""
         self.current_script_module = sys.modules[module]
@@ -107,11 +109,11 @@ class UsfmWizard(tkinter.Tk):
 
     # Returns the name of the step in the current process that should be
     # executed when the user presses the Back button.
-    def prevstep(self):
+    def prevstepname(self):
         gotostep = None
         match self.current_step.name():
             case 'MarkParagraphs':
-                gotostep = 'VerifyUSFM'
+                gotostep = 'UsfmCleanup'
             case 'Plaintext2Usfm':
                 gotostep = 'SelectProcess'
             case 'Txt2USFM':
@@ -131,10 +133,10 @@ class UsfmWizard(tkinter.Tk):
     
     # Activates the previous step
     def step_back(self):
-        self.activate_step(self.prevstep())
+        self.activate_step_byname(self.prevstepname())
 
     # Returns the name of the next step in the current process
-    def nextstep(self):
+    def nextstepname(self):
         gotostep = None
         match self.current_step.name():
             case 'MarkParagraphs':
@@ -159,18 +161,21 @@ class UsfmWizard(tkinter.Tk):
 
     # Activates the next step, based the current process and what step we just finished.
     def step_next(self, copyparms=None):
-        self.activate_step(self.nextstep(), copyparms)
+        self.activate_step_byname(self.nextstepname(), copyparms)
 
-    def activate_step(self, stepname, copyparms=None):
+    def activate_step_byname(self, stepname, copyparms=None):
         if stepname:
-            self.current_step = self.steps[stepname]
-            self.titleframe.step_label['text'] = self.current_step.title()
-            section = self.config.get_section(stepname)
-            if copyparms:
-                for parm in copyparms:
-                    section[parm] = copyparms[parm]
-                self.config.write_section(stepname, section)
-            self.current_step.show(section)
+            self.activate_step(self.steps[stepname], copyparms)
+
+    def activate_step(self, step, copyparms=None):
+        self.current_step = step
+        self.titleframe.step_label['text'] = self.current_step.title()
+        section = self.config.get_section(step.name())
+        if copyparms:
+            for parm in copyparms:
+                section[parm] = copyparms[parm]
+            self.config.write_section(step.name(), section)
+        self.current_step.show(section)
 
     # Called by one of the GUI modules.
     # Saves the specified values in the config file.
