@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Implement usfmFile object to write usfm file with proper spacing.
+# Implements usfmFile object to write usfm file with proper spacing.
 # By default, all usfm tags except footnotes start on a new line.
 # The caller can modify placement of line breaks:
 #    by calling setInlineTags() to specify a different set of usfm tags that should not start on a new line

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 # Renames Paratext .SFM files to our standard naming convention.
+# Changes the line endings to LF, if necessary.
 # Set these config values in config.ini before running this script.
 #   source_dir
 #   target_dir
-
 
 import configreader
 import os
