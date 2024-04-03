@@ -365,8 +365,7 @@ def reportError(msg, errorId=0, summarize_only=False):
     if not summarize_only:
         reportToGui('<<ScriptMessage>>', msg)
         write(msg, sys.stderr)
-        issuesfile = openIssuesFile()
-        issuesfile.write(msg + "\n")
+        openIssuesFile().write(msg + "\n")
 
     if errorId > 0:
         global issues
@@ -419,6 +418,7 @@ def dumpWords():
     with io.open(path, "tw", encoding='utf-8', newline = '\n') as file:
         file.write("For better viewing, used a fixed-width font if available.\n")
         file.write("---------------------------------------------------------\n")
+
         for entry in sorted(wordlist.items(), key=wordkey):
             line = f"{entry[0]:20}  {entry[1][0]}"
             if entry[1][0] < 3:
@@ -428,6 +428,8 @@ def dumpWords():
 # Returns sort key for the specified item. 
 def wordkey(item):
     word = item[0].lstrip("' .,:;!?-[]{}()<>\"“‘’”*/")
+    word2 = item[0].lstrip("'")
+    assert(word == word2)
     return str.lower(word)
 
 # Report missing text or all ASCII text, in previous verse
@@ -853,8 +855,8 @@ def takeText(t, footnote=False):
     state.addText(t)
     addWords(t)
 
-allpunc = ".,:;!?-\[\]{}()<>'\"“‘’”*/"
-quoteend_re = re.compile(r"[.,:;!?-\[\]{}()<>'\"“‘’”*/]'$")
+allpunc = ".,:;!?-\[\]{}()<>'\"“‘’”`*/"
+quoteend_re = re.compile(r"[.,:;!?-\[\]{}()<>'\"“‘’”`*/]'$")
 notnumberinfootnote_re = re.compile(r'[^\d:\-.,]')
 
 def addWords(t):
