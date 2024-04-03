@@ -82,6 +82,7 @@ class ToolsConfigManager:
             case 'UsfmCleanup':
                 sec = {'source_dir': "",
                     'filename': "",
+                    'standard_chapter_title': "",
                     'enable1': True,
                     'enable2': True,
                     'enable3': False,
@@ -89,6 +90,7 @@ class ToolsConfigManager:
                     'enable5': False,
                     'enable6': True,
                     'enable7': False,
+                    'enable8': False,
                     'sourcetext_dir': "" }
             case 'Usfm2Usx':
                 sec = {'source_dir': "",
