@@ -342,7 +342,7 @@ def getBookId(filename):
     if ext == ".txt" and len(id) == 3 and id.upper() in usfm_verses.verseCounts:
         bookId = id.upper()
     else:
-        reportError(f"Cannot identify book from file name: {filename}. Use XXX.txt where XXX is book ID.")
+        reportError(f"Cannot identify book from file name: {filename}.\n  Use XXX.txt where XXX is book ID.")
     return bookId
 
 # Appends information about the current book to the global projects list.
