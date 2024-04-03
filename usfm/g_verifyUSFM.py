@@ -21,26 +21,35 @@ class VerifyUSFM(g_step.Step):
         self.frame.grid(row=1, column=0, sticky="nsew")
         self.executed = False
 
+    def name(self):
+        return stepname
+
     def onNext(self):
         if self.executed:
-            super().onNext('source_dir', 'filename', 'language_code')
+            super().onNext('source_dir', 'filename', 'language_code', 'standard_chapter_title')
         else:
             super().onNext()
         self.executed = False
 
     def onExecute(self, values):
-        self.values = values    # redundant, they were the same dict to begin with
+        self.enablebutton(2, False)
+        self.enablebutton(3, False)
+        # self.values = values    # redundant, they were the same dict to begin with
         count = 1
         if not values['filename']:
             count = g_util.count_files(values['source_dir'], ".*sfm$")
         self.mainapp.execute_script("verifyUSFM", count)
         self.frame.clear_status()
         self.executed = True
+    
+    def executeInventoryLabels(self, folder):
+        self.mainapp.execute_script("inventory_chapter_labels", 0)
+        self.frame.clear_status()
 
-class VerifyUSFM_Frame(ttk.Frame):
+class VerifyUSFM_Frame(g_step.Step_Frame):
     def __init__(self, parent, controller):
-        super().__init__(parent)
-        self.controller = controller
+        super().__init__(parent, controller)
+        # self.controller = controller
 
         self.language_code = StringVar()
         self.source_dir = StringVar()
@@ -53,7 +62,7 @@ class VerifyUSFM_Frame(ttk.Frame):
         self.suppress[7].trace_add("write", self._onChangeQuotes)
         for col in [2,3,4]:
             self.columnconfigure(col, weight=1)   # keep column 1 from expanding
-        self.rowconfigure(88, minsize=170, weight=1)  # let the message expand vertically
+        # self.rowconfigure(88, minsize=170, weight=1)  # let the message expand vertically
 
         language_code_label = ttk.Label(self, text="Language code:", width=20)
         language_code_label.grid(row=3, column=1, sticky=(W,E,N), pady=2)
@@ -63,13 +72,17 @@ class VerifyUSFM_Frame(ttk.Frame):
         std_titles_label.grid(row=3, column=3, sticky=E)
         std_titles_entry = ttk.Entry(self, width=18, textvariable=self.std_titles)
         std_titles_entry.grid(row=3, column=4, sticky=W)
+        std_titles_helper = ttk.Button(self, text="...", width=2, command=self._onInventoryLabels)
+        std_titles_helper.grid(row=3, column=5, sticky=W)
+        helper_Tip = Hovertip(std_titles_helper, hover_delay=500,
+            text="Inventory existing chapter labels")
         
         source_dir_label = ttk.Label(self, text="Location of .usfm files:", width=20)
         source_dir_label.grid(row=4, column=1, sticky=W, pady=2)
         source_dir_entry = ttk.Entry(self, width=43, textvariable=self.source_dir)
         source_dir_entry.grid(row=4, column=2, columnspan=3, sticky=W)
         src_dir_find = ttk.Button(self, text="...", width=2, command=self._onFindSrcDir)
-        src_dir_find.grid(row=4, column=4, sticky=W, padx=5)
+        src_dir_find.grid(row=4, column=4, sticky=W)
         file_label = ttk.Label(self, text="File name:", width=20)
         file_label.grid(row=5, column=1, sticky=W, pady=2)
         file_entry = ttk.Entry(self, width=20, textvariable=self.filename)
@@ -77,7 +90,7 @@ class VerifyUSFM_Frame(ttk.Frame):
         file_Tip = Hovertip(file_entry, hover_delay=500,
              text="Leave filename blank to verify all .usfm files in the folder.")
         file_find = ttk.Button(self, text="...", width=2, command=self._onFindFile)
-        file_find.grid(row=5, column=3, sticky=W, padx=14)
+        file_find.grid(row=5, column=3, sticky=W, padx=12)
 
         subheadingFont = font.Font(size=10, slant='italic')     # normal size is 9
         suppressions_label = ttk.Label(self, text="Suppress these warnings?", font=subheadingFont)
@@ -144,14 +157,7 @@ class VerifyUSFM_Frame(ttk.Frame):
         suppress11_Tip = Hovertip(suppress11_checkbox, hover_delay=500,
              text=r'Suppress "Punctuation missing at end of paragraph" warnings; report totals only')
 
-        self.message_area = Text(self, height=10, width=30, wrap="none")
-        self.message_area['borderwidth'] = 2
-        self.message_area['relief'] = 'sunken'
-        self.message_area['background'] = 'grey97'
-        self.message_area.grid(row=88, column=1, columnspan=5, sticky='nsew', pady=6)
-        ys = ttk.Scrollbar(self, orient = 'vertical', command = self.message_area.yview)
-        ys.grid(column = 5, row = 88, sticky = 'ns')
-        self.message_area['yscrollcommand'] = ys.set
+        self.message_area['wrap'] = "none"
         xs = ttk.Scrollbar(self, orient = 'horizontal', command = self.message_area.xview)
         xs.grid(row=89, column = 1, columnspan=4, sticky = 'ew')
         self.message_area['xscrollcommand'] = xs.set
@@ -171,20 +177,13 @@ class VerifyUSFM_Frame(ttk.Frame):
         self.controller.showbutton(2, "VERIFY", tip="Check the USFM files now.", cmd=self._onExecute)
         self.controller.showbutton(3, "Open issues.txt", tip="Open issues.txt file in your default editor",
                                    cmd=self._onOpenIssues)
-        nextstep = self.controller.mainapp.nextstep()
+        nextstep = self.controller.mainapp.nextstepname()
         if nextstep == "Usfm2Usx":
             tip = "Convert to resource container"
         else:
             tip = "Automated USFM file cleanup"
         self.controller.showbutton(5, ">>>", tip=tip, cmd=self._onNext)
         self._set_button_status()
-
-    # Displays status messages from the running script.
-    def show_progress(self, status):
-        self.message_area.insert('end', status + '\n')
-        self.message_area.see('end')
-        self.controller.enablebutton(2, False)
-        self.controller.enablebutton(3, False)
 
     def onScriptEnd(self):
         issuespath = os.path.join(self.values['source_dir'], "issues.txt")
@@ -216,6 +215,10 @@ class VerifyUSFM_Frame(ttk.Frame):
         self.controller.mainapp.save_values(stepname, self.values)
         self._set_button_status()
 
+    def _onInventoryLabels(self, *args):
+        self._save_values()
+        self.controller.executeInventoryLabels(self.values['source_dir'])
+
     def _onFindSrcDir(self, *args):
         self.controller.askdir(self.source_dir)
     def _onFindFile(self, *args):
@@ -233,33 +236,26 @@ class VerifyUSFM_Frame(ttk.Frame):
         if not self.suppress[7].get():
             self.suppress[6].set(False)
 
-    def _onExecute(self, *args):
-        self._save_values()
-        self.controller.enablebutton(2, False)
-        self.controller.onExecute(self.values)
-    def _onBack(self, *args):
-        self._save_values()
-        self.controller.onBack()
-    def _onNext(self, *args):
-        self._save_values()
-        self.controller.onNext()
     def _onOpenIssues(self, *args):
         self._save_values()
         path = os.path.join(self.values['source_dir'], "issues.txt")
         os.startfile(path)
+    # Opens usfm folder, or specific usfm file
     def _onOpenUsfmFile(self, *args):
         path = os.path.join(self.source_dir.get(), self.filename.get())
         os.startfile(path)
 
     def _set_button_status(self):
-        good_source = os.path.isdir(self.source_dir.get())
-        filepath = ""
-        if good_source and self.filename.get():
-            filepath = os.path.join(self.source_dir.get(), self.filename.get())
-            good_source = os.path.isfile(filepath)
-        self.controller.enablebutton(2, self.language_code.get() and good_source)
-        if good_source:
-            self.controller.showbutton(4, self.filename.get(), tip=f"Open {self.filename.get()}", cmd=self._onOpenUsfmFile)
+        good_dir = os.path.isdir(self.source_dir.get())
+        namedfile = self.filename.get()
+        good_subject = good_dir and not namedfile
+        if good_dir and namedfile:
+            filepath = os.path.join(self.source_dir.get(), namedfile)
+            good_subject = os.path.isfile(filepath)
+        self.controller.enablebutton(2, self.language_code.get() and good_subject)
+        if good_dir:
+            title = namedfile if namedfile and good_subject else "Usfm folder"
+            self.controller.showbutton(4, title, tip=f"Open {title}", cmd=self._onOpenUsfmFile)
         else:
             self.controller.hidebutton(4)
 
