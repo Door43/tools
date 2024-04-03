@@ -20,11 +20,14 @@ class UsfmCleanup(g_step.Step):
         self.frame = UsfmCleanup_Frame(mainframe, self)
         self.frame.grid(row=1, column=0, sticky="nsew")
 
+    def name(self):
+        return stepname
+
     def onNext(self):
         super().onNext('source_dir', 'filename')
     
     def onExecute(self, values):
-        self.values = values    # redundant, they were the same dict to begin with
+        self.enablebutton(2, False)
         count = 1
         if not values['filename']:
             count = g_util.count_files(values['source_dir'], ".*sfm$")
@@ -40,36 +43,43 @@ class UsfmCleanup(g_step.Step):
         self.mainapp.execute_script("revertChanges", 1)
         self.frame.clear_status()
 
-class UsfmCleanup_Frame(ttk.Frame):
+class UsfmCleanup_Frame(g_step.Step_Frame):
     def __init__(self, parent, controller):
-        super().__init__(parent)
-        self.controller = controller
+        super().__init__(parent, controller)
 
         self.source_dir = StringVar()
         self.filename = StringVar()
         self.std_titles = StringVar()
         for var in (self.filename, self.source_dir):
             var.trace_add("write", self._onChangeEntry)
-        self.enable = [BooleanVar(value = False) for i in range(8)]
+        self.std_titles.trace_add("write", self._onChangeTitles)
+        self.enable = [BooleanVar(value = False) for i in range(9)]
         self.enable[3].trace_add("write", self._onChangeQuotes)
         self.enable[4].trace_add("write", self._onChangeQuotes)
 
         source_dir_label = ttk.Label(self, text="Location of .usfm files:", width=20)
         source_dir_label.grid(row=4, column=1, sticky=W, pady=2)
-        self.source_dir_entry = ttk.Entry(self, width=43, textvariable=self.source_dir)
+        self.source_dir_entry = ttk.Entry(self, width=44, textvariable=self.source_dir)
         self.source_dir_entry.grid(row=4, column=2, columnspan=3, sticky=W)
         src_dir_find = ttk.Button(self, text="...", width=2, command=self._onFindSrcDir)
-        src_dir_find.grid(row=4, column=4, sticky=W, padx=5)
+        src_dir_find.grid(row=4, column=4, sticky=W)
 
         file_label = ttk.Label(self, text="File name:", width=20)
         file_label.grid(row=5, column=1, sticky=W, pady=2)
-        self.file_entry = ttk.Entry(self, width=21, textvariable=self.filename)
+        self.file_entry = ttk.Entry(self, width=22, textvariable=self.filename)
         self.file_entry.grid(row=5, column=2, sticky=W)
         file_Tip = Hovertip(self.file_entry, hover_delay=500,
              text="Leave filename blank to clean all .usfm files in the folder.")
         file_find = ttk.Button(self, text="...", width=2, command=self._onFindFile)
-        file_find.grid(row=5, column=3, sticky=W, padx=3)
+        file_find.grid(row=5, column=3, sticky=W)
         
+        std_titles_label = ttk.Label(self, text="Standard chapter title:", width=20)
+        std_titles_label.grid(row=6, column=1, sticky=E)
+        std_titles_entry = ttk.Entry(self, width=18, textvariable=self.std_titles)
+        std_titles_entry.grid(row=6, column=2, sticky=W)
+        std_title_Tip = Hovertip(std_titles_entry, hover_delay=500,
+             text="Leave blank if unknown.")
+
         subheadingFont = font.Font(size=10, slant='italic')     # normal size is 9
         enable_label = ttk.Label(self, text="Enable these fixes?", font=subheadingFont)
         enable_label.grid(row=10, column=1, columnspan=2, sticky=W, pady=(4,2))
@@ -115,21 +125,21 @@ class UsfmCleanup_Frame(ttk.Frame):
                                              onvalue=True, offvalue=False)
         enable7_checkbox.grid(row=12, column=3, sticky=W)
         enable7_Tip = Hovertip(enable7_checkbox, hover_delay=500,
-             text="Mark obvious section titles with \s")
+             text="Mark obvious section titles with \s. (not implemented yet)")
+        enable7_checkbox.state(['disabled'])
 
-        self.message_area = Text(self, height=14, width=30, wrap="none")
-        self.message_area['borderwidth'] = 2
-        self.message_area['relief'] = 'sunken'
-        self.message_area['background'] = 'grey97'
-        self.message_area.grid(row=88, column=1, columnspan=4, sticky='nsew', pady=6)
-        ys = ttk.Scrollbar(self, orient = 'vertical', command = self.message_area.yview)
-        ys.grid(column = 5, row = 88, sticky = 'ns')
-        self.message_area['yscrollcommand'] = ys.set
+        self.enable8_checkbox = ttk.Checkbutton(self, text='Chapter labels', variable=self.enable[8],
+                                             onvalue=True, offvalue=False)
+        self.enable8_checkbox.grid(row=12, column=4, sticky=W)
+        enable8_Tip = Hovertip(self.enable8_checkbox, hover_delay=500,
+             text="Standardize chapter labels.")
+        self.enable8_checkbox.state(['disabled'])
 
     def show_values(self, values):
         self.values = values
         self.source_dir.set(values.get('source_dir', fallback=""))
         self.filename.set(values.get('filename', fallback=""))
+        self.std_titles.set(values.get('standard_chapter_title', fallback=""))
         for i in range(len(self.enable)):
             configvalue = f"enable{i}"
             self.enable[i].set( values.get(configvalue, fallback = False))
@@ -142,12 +152,7 @@ class UsfmCleanup_Frame(ttk.Frame):
                                    cmd=self._onUndo)
         self.controller.showbutton(5, ">>>", tip="Mark paragraphs", cmd=self._onNext)
         self._set_button_status()
-
-    # Displays status messages from the running script.
-    def show_progress(self, status):
-        self.message_area.insert('end', status + '\n')
-        self.message_area.see('end')
-        self.controller.enablebutton(2, False)
+        self._onChangeTitles()
 
     def onScriptEnd(self):
         self.message_area['state'] = DISABLED   # prevents insertions to message area
@@ -170,6 +175,7 @@ class UsfmCleanup_Frame(ttk.Frame):
     def _save_values(self):
         self.values['source_dir'] = self.source_dir.get()
         self.values['filename'] = self.filename.get()
+        self.values['standard_chapter_title'] = self.std_titles.get()
         for si in range(len(self.enable)):
             configvalue = f"enable{si}"
             self.values[configvalue] = str(self.enable[si].get())
@@ -185,9 +191,6 @@ class UsfmCleanup_Frame(ttk.Frame):
             self.filename.set(os.path.basename(path))
     def _onChangeEntry(self, *args):
         self._set_button_status()
-    def _onBack(self, *args):
-        self._save_values()
-        self.controller.onBack()
     def _onOpenSourceDir(self, *args):
         self._save_values()
         os.startfile(self.values['source_dir'])
@@ -195,13 +198,12 @@ class UsfmCleanup_Frame(ttk.Frame):
         self._save_values()
         self.controller.revertChanges()
         self.controller.enablebutton(4, False)
-    def _onNext(self, *args):
-        self._save_values()
-        self.controller.onNext()
 
-    def _onExecute(self, *args):
-        self._save_values()
-        self.controller.onExecute(self.values)
+    # When there is no standard chapter title, disable the 'Fix chapter titles" button.
+    def _onChangeTitles(self, *args):
+        if not self.std_titles.get():
+            self.enable[8].set(False)
+        self.enable8_checkbox.state(['!disabled'] if self.std_titles.get() else ['disabled'])
 
     def _onOpenIssues(self, *args):
         self._save_values()
