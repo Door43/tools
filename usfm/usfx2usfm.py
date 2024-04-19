@@ -122,7 +122,7 @@ class UsfxHandler(xml.sax.ContentHandler):
     def writeV(self):
         UsfxHandler.output.write("\n\\v " + UsfxHandler.verse)
 
-    # Writes the specified text to the usfm file, with a space character inserted as needed.
+    # Writes the current bit of text to the usfm file, with a space character inserted as needed.
     # When the xml.sax.handler sends back a word in two pieces (presumably due to buffering)
     # the logic of this function inserts an undesired space in the middle of that word.
     # Fix this, if the script becomes frequently used.
@@ -130,13 +130,12 @@ class UsfxHandler(xml.sax.ContentHandler):
     # the two output files. The extra spaces are easily spotted and easily removed.
     def writeText(self):
         if text := UsfxHandler.content:
-            if UsfxHandler.lastchar not in {'(','¿','¡'} and text[0] not in {'.',')',',',';',':','?','!'}:
+            if UsfxHandler.lastchar not in "(¿¡‘“" and text[0] not in ".),;:?!’”":
                 text = ' ' + text
             UsfxHandler.output.write(text)
             UsfxHandler.lastchar = text[-1]
 
-
-# Returns the value corresponding the specified key in attrs
+# Returns the value corresponding to the specified key in attrs
 # attrs must be a list of (key,value) pairs)
 def getValue(attrs, key):
     value = None
@@ -168,6 +167,6 @@ if __name__ == "__main__":
         source_dir = os.path.dirname(usfm_path)
         convertFile(usfm_path)
         sys.stdout.write("Done.\n")
-        sys.stdout.write("About once every 20 chapters this program may insert a space in the middle of a word. See UsfxHandler.writeText() comments.\n")
+        sys.stdout.write("About once every 20 chapters this program may insert a space in the middle of a word. See UsfxHandler.writeText() comments for a workaround.\n")
     else:
         sys.stderr.write("Usage: python usfx2usfm.py <usfx-path>\n  Or hard code the path.\n")
