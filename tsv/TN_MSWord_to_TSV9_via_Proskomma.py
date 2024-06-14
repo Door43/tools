@@ -26,7 +26,7 @@ import logging
 import subprocess
 
 
-LOCAL_SOURCE_BASE_FOLDERPATH = Path('/Users/richmahn/repos/git.door43.org/')
+LOCAL_SOURCE_BASE_FOLDERPATH = Path('C:/Users/benja/Documents/uwgit/')
 LOCAL_SOURCE_FOLDERPATH = LOCAL_SOURCE_BASE_FOLDERPATH.joinpath('GEN_MSWord_notes/')
 
 # The output folder below must also already exist!
@@ -74,7 +74,7 @@ def get_input_fields(input_folderpath:Path, BBB:str) -> Tuple[str,str,str,str,st
             if line_number == 1 and line.startswith('\ufeff'): line = line[1:] # Remove optional BOM
             line = line.rstrip('\n\r').strip()
             print(f"{line_number:3}/ {C}:{V} {status:10} ({len(line)}) '{line}'")
-            if status == 'Idle' and line.isdigit(): # chapter number
+            if (status == 'Idle' or status == "Expecting glQuote or next verse") and line.isdigit(): # chapter number
                 C = line
                 print(f"     Got chapter #{C} at line {line_number}")
                 intC = int(C)
@@ -86,12 +86,17 @@ def get_input_fields(input_folderpath:Path, BBB:str) -> Tuple[str,str,str,str,st
             elif (status == 'Idle' or status == 'Expecting glQuote or next verse') \
             and line.startswith(f'{Bbb} {C}:'):
                 ix = 5 + len(C)
-                V = ''
-                while line[ix].isdigit():
-                    V += line[ix]
-                    ix += 1
-                verseText = line[ix:].strip()
-                print(f"     Got {C}:{V} verse text: '{verseText}'")
+                V = line[ix:].strip()
+                # while line[ix].isdigit():
+                #     V += line[ix]
+                #     ix += 1
+                print(f"     Got reference {C}:{V}")
+                status = 'Expecting verseText'
+                # verseText = line[ix:].strip()
+                # print(f"     Got {C}:{V} verse text: '{verseText}'")
+                # status = 'Expecting glQuote'
+            elif status == 'Expecting verseText' and len(line) > 0:
+                verseText = line.strip()
                 status = 'Expecting glQuote'
             elif not line:
                 if status == 'Getting note':
@@ -113,7 +118,7 @@ def get_input_fields(input_folderpath:Path, BBB:str) -> Tuple[str,str,str,str,st
                     print(f"WARNING at line {line_number} {BBB} {C}:{V}: glQuote='{glQuote}' seems not to be in verse text: '{verseText}'")
                 elif quote_count > 1:
                     print(f"WARNING at line {line_number} {BBB} {C}:{V}: glQuote='{glQuote}' seems to occur {quote_count} times in verse text: '{verseText}'")
-                    write_more_code # Need to write more code here if this happens
+                    # write_more_code # Need to write more code here if this happens but for now this crashes us
                 status = 'Getting note'
             elif status == 'Getting note':
                 note += ' ' + line
