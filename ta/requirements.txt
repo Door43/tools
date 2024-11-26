@@ -3,7 +3,7 @@ beautifulsoup4==4.6.3
 bs4==0.0.1
 future==0.16.0
 futures==3.2.0
-markdown2==2.3.6
+markdown2==2.4.0
 pyparsing==2.1.10
 python-dateutil==2.3
 PyYAML==3.13
