@@ -6,7 +6,7 @@ futures==3.2.0
 markdown2==2.3.6
 pyparsing==2.1.10
 python-dateutil==2.3
-PyYAML==3.13
+PyYAML==5.4
 singledispatch==3.4.0.3
 six==1.11.0
 tornado==5.1.1
